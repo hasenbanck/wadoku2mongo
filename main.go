@@ -9,33 +9,6 @@ import (
 	"runtime"
 )
 
-type GrammType int
-
-const (
-	NotDefined GrammType = iota
-	Daimeishi
-	Doushi
-	Fukujoshi
-	Fukushi
-	Jodoushi
-	Jokeiyoushi
-	Joshi
-	Kakarijoshi
-	Kandoushi
-	Kanji
-	Keiyoudoushi
-	Keiyoushi
-	Meishi
-	Prefix
-	Rengo
-	Rentaishi
-	Setsuzokushi
-	Shuujoshi
-	Specialcharacter
-	Suffix
-	Wordcomponent
-)
-
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 

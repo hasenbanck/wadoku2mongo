@@ -58,7 +58,7 @@ type XMLDict struct {
 	Entries []XMLEntry `xml:"entry"`
 }
 
-func parseGrammType(entry *XMLEntry) GrammType {
+func parseGrammType(entry *XMLEntry) grammType {
 	switch {
 	case entry.GrammGroup.Daimeishi != nil:
 		return Daimeishi

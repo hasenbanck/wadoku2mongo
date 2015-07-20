@@ -5,6 +5,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // Pre-compiled regular expressions
@@ -31,19 +32,6 @@ var (
 	re_transc *regexp.Regexp
 )
 
-type Reading struct {
-	Hiragana string
-	Hatsuon  string
-}
-
-type Entry struct {
-	Id          int
-	GrammType   GrammType
-	Orthography []string
-	Reading     []Reading
-	Translation []string
-}
-
 func saveIntoMongo(dict XMLDict, connection string) error {
 	session, err := mgo.Dial(connection)
 	if err != nil {
@@ -51,25 +39,33 @@ func saveIntoMongo(dict XMLDict, connection string) error {
 	}
 	defer session.Close()
 
-	// Optional. Switch the session to a monotonic behavior.
-	session.SetMode(mgo.Monotonic, true)
+	// Optional. Switch the session to a strong behavior.
+	session.SetMode(mgo.Strong, true)
 
 	c := session.DB("wadoku").C("dictionary")
 	for _, entry := range dict.Entries {
 		orth := make([]string, 0, len(entry.Form.Orthography))
 		read := make([]Reading, 0, len(entry.Form.Reading))
 		trans := make([]string, 0, len(entry.Sense))
+		count := 0
 
 		for _, o := range entry.Form.Orthography {
 			// We don't need the midashigo entries, since the are double and often contain non searchable chars like "△原"
 			if !o.Midashigo {
 				// We normalize just to be sure
-				orth = append(orth, norm.NFKC.String(o.Text))
+				n := norm.NFKC.String(o.Text)
+				c := utf8.RuneCountInString(n)
+				// TODO remove ... prefix
+				orth = append(orth, n)
+				if c > count {
+					count = c
+				}
 			}
 		}
 
 		for _, r := range entry.Form.Reading {
 			// We normalize just to be sure
+			// TODO remove ... prefix
 			read = append(read, Reading{norm.NFKC.String(r.Hiragana), norm.NFKC.String(r.Hatsuon)})
 		}
 
@@ -95,15 +91,18 @@ func saveIntoMongo(dict XMLDict, connection string) error {
 			parseGrammType(&entry),
 			orth,
 			read,
-			trans})
+			trans,
+			count})
 		if err != nil {
 			return err
 		}
 	}
 
 	// Create indexes
-	c.EnsureIndex(mgo.Index{Key: []string{"id"}, Unique: true})
-	c.EnsureIndex(mgo.Index{Key: []string{"ortography"}})
+	c.EnsureIndexKey("id")
+	c.EnsureIndexKey("orthography")
+	c.EnsureIndexKey("reading.hiragana")
+	c.EnsureIndexKey("-count")
 
 	return nil
 }
